@@ -5,7 +5,7 @@ export type Game = {
   description: string;
   addedAt: string;
   controls: 'tap' | 'hold' | 'swipe' | 'aim' | 'steer' | 'arrows' | 'draw' | 'body' | 'type';
-  needs?: 'webcam';
+  needs?: 'webcam' | 'keyboard';
   hidden?: boolean;
 };
 
@@ -63,6 +63,7 @@ const allGames: Game[] = [
       'A typing game. Every word you type lays a board under a stick figure who never stops walking. They keep pace with you, typos make them stumble, and if they reach the edge it is a splash. 25 lessons from f and j to full sentences, with a ghost of your best run to race, a hat to win in each lesson and an endless goose chase.',
     addedAt: '2026-11-18',
     controls: 'type',
+    needs: 'keyboard',
   },
   {
     slug: 'bopping',
