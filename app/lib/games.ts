@@ -56,6 +56,15 @@ const allGames: Game[] = [
     controls: 'hold',
   },
   {
+    slug: 'pogo',
+    name: 'Pogo Hop',
+    tagline: 'He never stops bouncing, hold to clear the gaps',
+    description:
+      'A little pogo stick game. He bounces on his own: hold as you land to squash the spring, let go to fly over the gap. Stick the centre for a perfect chain, and get off crumbling pillars fast.',
+    addedAt: '2026-11-24',
+    controls: 'hold',
+  },
+  {
     slug: 'skirmish',
     name: 'Skirmish',
     tagline: 'Drop an army, build fences, watch the brawl',
