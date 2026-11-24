@@ -56,6 +56,15 @@ const allGames: Game[] = [
     controls: 'hold',
   },
   {
+    slug: 'balance',
+    name: 'Keep Balancing',
+    tagline: 'Roll the ball back under you, do not topple',
+    description:
+      'A stick figure wobbles on a rolling ball. Tap the side he leans toward to roll the ball back under him. Gusts of wind and rocks in the road push him off, and the wobble gets wilder the longer you last. Close calls earn bonus points, and one big topple ends the run.',
+    addedAt: '2026-11-24',
+    controls: 'tap',
+  },
+  {
     slug: 'skirmish',
     name: 'Skirmish',
     tagline: 'Drop an army, build fences, watch the brawl',
