@@ -56,6 +56,14 @@ const allGames: Game[] = [
     controls: 'hold',
   },
   {
+    slug: 'seat',
+    name: 'Last Seat',
+    tagline: 'Rush hour train. Grab the empty seat, mind the brakes',
+    description: 'Hold to walk to the empty seat on a packed Jakarta commuter train, and let go when the brake light blinks or you go flying. More people board at every stop, and priority seats belong to someone else. Ride from Rangkasbitung to Tanah Abang without losing the race for a seat.',
+    addedAt: '2026-11-23',
+    controls: 'hold',
+  },
+  {
     slug: 'skirmish',
     name: 'Skirmish',
     tagline: 'Drop an army, build fences, watch the brawl',

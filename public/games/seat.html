@@ -1,0 +1,1785 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Last Seat</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Balsamiq+Sans:wght@400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #ffffff;
+    --card: #ffffff;
+    --ink: #1f2329;
+    --muted: #7a7a7a;
+    --soft: #a3a3a3;
+    --faint: #d4d4d4;
+    --line: #ededed;
+    --dot: rgba(31, 41, 55, .13);
+    --chip: #f5f5f5;
+    --ring: rgba(0, 0, 0, .06);
+    --butter: #fde68a;
+    --butter-hi: #fcd34d;
+    --butter-soft: #fef3c7;
+    --umber: #78350f;
+    --amber: #b45309;
+    --font: 'Balsamiq Sans', 'Comic Sans MS', ui-rounded, system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%; color: var(--ink); overflow: hidden;
+    background-color: var(--paper);
+    background-image: radial-gradient(circle, var(--dot) 0.8px, transparent 1px);
+    background-size: 24px 24px; background-position: 12px 12px;
+    touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
+    font-family: var(--font); font-weight: 400;
+  }
+  h1, b, strong { font-weight: 400; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; cursor: pointer; }
+  button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; outline: none; padding: 0; }
+  .panel { background: var(--card); border-radius: 14px; box-shadow: 0 0 0 1px var(--ring), 0 2px 8px rgba(0, 0, 0, .04), 0 1px 2px rgba(0, 0, 0, .03); }
+  .label { font-size: 13px; color: var(--muted); line-height: 1.2; }
+
+  #hud {
+    position: fixed; left: 0; top: 0;
+    padding: calc(env(safe-area-inset-top, 0px) + 20px) 0 0 max(20px, env(safe-area-inset-left, 0px));
+    pointer-events: none; transition: opacity .35s ease;
+  }
+  #hud.hidden { opacity: 0; }
+  .board { padding: 14px 18px; display: flex; align-items: flex-end; gap: 28px; }
+  .stat .label { margin-top: 6px; }
+  #score { font-size: 44px; line-height: .85; font-variant-numeric: tabular-nums; display: inline-block; transform-origin: left bottom; }
+  #score.bump { animation: bump .35s ease; }
+  @keyframes bump { 0% { transform: scale(1); } 35% { transform: scale(1.12); } 100% { transform: scale(1); } }
+  #best, #stops { font-size: 22px; line-height: 1; font-variant-numeric: tabular-nums; color: var(--muted); }
+
+  #hint {
+    position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 28px); transform: translateX(-50%);
+    font-size: 14.5px; color: var(--muted); white-space: nowrap; pointer-events: none; transition: opacity .4s;
+    display: flex; align-items: center; gap: 8px;
+  }
+  #hint.hidden { opacity: 0; }
+  kbd { font: inherit; font-size: 12px; color: #5a5a5a; background: var(--chip); box-shadow: 0 0 0 1px rgba(0, 0, 0, .07); border-radius: 6px; padding: 3px 8px; line-height: 1.25; }
+  @media (hover: none) { .kbd-only { display: none; } }
+
+  #overlay {
+    position: fixed; inset: 0; display: grid; place-items: center; padding: 20px;
+    background: rgba(20, 22, 26, .24);
+    opacity: 0; pointer-events: none; transition: opacity .3s ease; overflow-y: auto;
+  }
+  #overlay.on { opacity: 1; pointer-events: auto; }
+  .card {
+    width: min(360px, 100%); background: var(--card); border-radius: 18px; padding: 28px;
+    transform: translateY(12px); transition: transform .35s cubic-bezier(.2, .9, .3, 1); display: none;
+  }
+  #overlay.on .card.show { transform: none; }
+  .card.show { display: block; }
+  .row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .logo { width: 46px; height: 46px; border-radius: 12px; background: #262626; display: grid; place-items: center; margin-bottom: 20px; }
+  .logo svg { width: 26px; height: 26px; }
+  .title { font-size: 32px; line-height: 1; margin: 0; }
+  .keys { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--muted); font-size: 15px; margin: 18px 0 10px; }
+  .tag { color: var(--muted); font-size: 15px; line-height: 1.5; margin: 0 0 26px; }
+  .chip { display: inline-flex; align-items: center; font-size: 13px; padding: 3px 9px; border-radius: 7px; background: var(--butter); color: var(--umber); white-space: nowrap; }
+  .actions { display: flex; gap: 10px; }
+  .btn { display: flex; align-items: center; justify-content: center; gap: 10px; height: 50px; border-radius: 12px; font-size: 17px; transition: transform .12s, background .2s; }
+  .btn:active { transform: scale(.98); }
+  .btn.primary { flex: 1; background: var(--butter); color: var(--umber); box-shadow: 0 0 0 1px rgba(180, 83, 9, .2), 0 2px 8px rgba(0, 0, 0, .04); }
+  .btn.primary kbd { background: rgba(255, 255, 255, .55); color: #92400e; box-shadow: none; }
+  .btn.ghost { width: 50px; flex: none; background: var(--chip); box-shadow: 0 0 0 1px rgba(0, 0, 0, .05); }
+  @media (hover: hover) {
+    .btn.primary:hover { background: var(--butter-hi); }
+    .btn.ghost:hover { background: #ececec; }
+  }
+  .btn svg { width: 19px; height: 19px; }
+  .foot { text-align: center; color: var(--soft); font-size: 13px; line-height: 1.5; margin-top: 22px; }
+  .foot:empty { display: none; }
+  .exit { display: block; width: fit-content; margin: 18px auto 0; font-size: 14px; color: var(--soft); text-decoration: none; }
+  @media (hover: hover) { .exit:hover { color: var(--ink); } }
+  .result { display: flex; align-items: flex-end; gap: 36px; margin: 22px 0 28px; }
+  .result .label { margin-top: 8px; }
+  #endScore { font-size: 72px; line-height: .8; font-variant-numeric: tabular-nums; display: block; }
+  #endBest { font-size: 32px; line-height: .9; font-variant-numeric: tabular-nums; }
+  #toast {
+    position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 24px); transform: translate(-50%, 20px);
+    background: #262626; color: #fff; font-size: 14px; padding: 10px 16px; border-radius: 10px;
+    opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; white-space: nowrap; z-index: 5;
+  }
+  #toast.on { opacity: 1; transform: translate(-50%, 0); }
+  .back { position: fixed; z-index: 6; top: calc(env(safe-area-inset-top, 0px) + 22px); right: max(20px, env(safe-area-inset-right, 0px)); font-size: 14px; color: var(--soft); text-decoration: none; }
+  .back:hover { color: var(--ink); }
+  @media (max-width: 420px) {
+    #hud { padding-left: max(14px, env(safe-area-inset-left, 0px)); padding-top: calc(env(safe-area-inset-top, 0px) + 14px); }
+    .board { padding: 12px 14px; }
+    #score { font-size: 38px; }
+    .back { top: calc(env(safe-area-inset-top, 0px) + 16px); right: max(14px, env(safe-area-inset-right, 0px)); font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<a class="back" href="/" target="_top">← all games</a>
+
+<div id="hud" class="hidden">
+  <div class="board panel">
+    <div class="stat"><div id="score">0</div><div class="label">Score</div></div>
+    <div class="stat"><div id="best">0</div><div class="label">Best</div></div>
+    <div class="stat"><div id="stops">19</div><div class="label">Stops left</div></div>
+  </div>
+</div>
+
+<div id="hint" class="hidden"><span>Hold to walk, let go when it brakes</span><span class="kbd-only">or</span><kbd class="kbd-only">Space</kbd></div>
+
+<div id="overlay" class="on">
+  <div class="card show" id="startCard">
+    <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4v9h9l2 7"/><path d="M6 13l-1 7"/><path d="M10 9h6"/></svg></div>
+    <h1 class="title">Last seat</h1>
+    <div class="keys"><kbd>Hold</kbd> to walk to the empty seat</div>
+    <p class="tag">Rush hour on Jakarta's Green Line. Let go when the brake light blinks, and leave priority seats alone.</p>
+    <div class="actions">
+      <button class="btn primary" id="playBtn"><span>Play</span><kbd class="kbd-only">Space</kbd></button>
+    </div>
+    <div class="foot" id="startFoot"></div>
+    <a class="exit" href="/" target="_top">← All games</a>
+  </div>
+  <div class="card" id="endCard">
+    <div class="row">
+      <div class="label">Round over</div>
+      <span class="chip" id="endChip" style="display:none">New best</span>
+    </div>
+    <div class="result">
+      <div><span id="endScore">0</span><div class="label">Seats</div></div>
+      <div><div id="endBest">0</div><div class="label">Best</div></div>
+    </div>
+    <div class="actions">
+      <button class="btn primary" id="againBtn"><span>Play again</span><kbd class="kbd-only">Space</kbd></button>
+      <button class="btn ghost" id="shareBtn" aria-label="Download image" title="Download image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg></button>
+    </div>
+    <div class="foot" id="endFoot"></div>
+    <a class="exit" href="/" target="_top">← All games</a>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+const SLUG = 'seat';
+const GAME = 'Last Seat';
+const COL = { bg: '#ffffff', ink: '#141414', fig: '#141414', muted: '#737373', faint: '#d4d4d4', butter: '#fde68a', accent: '#b45309', red: '#e5484d', butterSoft: '#fef3c7', umber: '#78350f', dot: 'rgba(31,41,55,0.13)' };
+const cv = document.getElementById('c');
+let ctx = cv.getContext('2d');
+
+// Shared building blocks, copied from references/snippets.js. Keep what you use, delete the rest.
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+const lerp = (a, b, k) => a + (b - a) * k;
+const lerp2 = (a, b, k) => [lerp(a[0], b[0], k), lerp(a[1], b[1], k)];
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const EASE = {
+  io: (k) => (k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2),
+  in: (k) => k * k,
+  out: (k) => 1 - (1 - k) * (1 - k),
+  lin: (k) => k,
+  soft: (k) => 0.5 - Math.cos(Math.PI * k) / 2,
+};
+
+function mulberry(a) {
+  return function () {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// ── Fitting the world to any screen ────────────────────────────────────────
+// Design the game in fixed world units (a VIEW box), then scale it to fit the screen, leaving room for the HUD.
+// Draw with ctx.setTransform(dpr * cam.s, 0, 0, dpr * cam.s, dpr * cam.x, dpr * cam.y) and world coordinates.
+// Portrait phones can't fit the whole width at a readable size, so they show at least minW world units
+// centred on focusX (put the action there), and things off to the side scroll or roll into view.
+
+// Centred on the seat (SEAT = 30) so the empty seat, brake sign and banners sit mid-screen.
+const VIEW = { x0: -230, x1: 290, y0: -345, y1: 20, minW: 340, focusX: -30 };
+let dpr = 1, cw = 0, ch = 0, cam = { s: 1, x: 0, y: 0 };
+
+// On narrow screens the camera follows the walk and settles on the seat once someone sits.
+let camFocus = VIEW.focusX;
+function fitView() {
+  dpr = Math.min(window.devicePixelRatio || 1, 3);
+  cw = innerWidth;
+  ch = innerHeight;
+  const narrow = cw < ch;
+  const short = !narrow && ch < 520;
+  const top = narrow ? 150 : short ? 64 : 110;
+  const bottom = short ? 8 : 64;
+  const vw = VIEW.x1 - VIEW.x0, vh = VIEW.y1 - VIEW.y0;
+  const fitH = (ch - top - bottom) / vh;
+  const s = narrow ? Math.min(fitH, cw / VIEW.minW, 1.75) : Math.min((cw - 120) / vw, fitH, 1.75);
+  const centre = narrow ? camFocus : (VIEW.x0 + VIEW.x1) / 2;
+  cam = {
+    s,
+    x: cw / 2 - centre * s,
+    y: top + (ch - top - bottom - vh * s) * (narrow ? 0.55 : 0.6) - VIEW.y0 * s,
+  };
+}
+function toWorld(px, py) {
+  return [(px - cam.x) / cam.s, (py - cam.y) / cam.s];
+}
+
+// ── Stick figure ───────────────────────────────────────────────────────────
+// Poses are joint positions in figure space: facing right, feet near y = -8, head near y = -121.
+// Draw at (x, groundY + 8) so the feet touch the ground. Needs: Helpers, strokePath, COL.fig.
+// Make new poses with mk({...}) by moving a few joints of BASE; play them with an Actor.
+
+const THIGH = 30, SHIN = 30, UARM = 21, FARM = 21;
+const LIMB = 5, ARM = 4.2, TORSO = 8.5, HEAD_R = 7.8, FAR = '#9a9a9a';
+const BASE = {
+  face: 1,
+  head: [0, -121], chest: [0, -96], hip: [0, -65],
+  fF: [1, -8], fB: [-4, -8], kF: [22, -38], kB: [10, -38],
+  hF: [3, -57], hB: [-1, -57], eF: [-6, -78], eB: [-6, -78],
+};
+const mk = (o, base = BASE) => Object.assign({}, base, o);
+const P = {};
+P.stand = mk({});
+P.ready = mk({ head: [2, -121], hF: [15, -84], eF: [5, -71], hB: [-4, -56], eB: [-6, -77] });
+P.crouch = mk({ head: [6, -100], chest: [4, -76], hip: [-2, -46], kF: [24, -30], kB: [12, -28], hF: [16, -60], eF: [10, -56], hB: [-8, -52], eB: [-8, -60] });
+P.leap = mk({ head: [4, -124], chest: [2, -99], hip: [0, -68], fF: [14, -30], fB: [-14, -26], kF: [20, -52], kB: [-2, -48], hF: [18, -140], eF: [16, -120], hB: [-14, -134], eB: [-12, -116] });
+P.cheer = mk({ head: [0, -122], chest: [0, -97], hip: [0, -67], hF: [16, -136], hB: [-12, -134], eF: [14, -118], eB: [-12, -116] });
+P.wince = mk({ head: [-3, -118], chest: [-2, -94], hip: [0, -65], kF: [20, -37], hF: [7, -125], eF: [19, -111], hB: [-7, -125], eB: [-20, -109] });
+P.phew = mk({ head: [-1, -120], chest: [-1, -95], hip: [0, -65], hF: [13, -80], eF: [4, -68], hB: [2, -122], eB: [-14, -106] });
+P.punch = mk({ head: [8, -118], chest: [6, -94], hip: [0, -64], kF: [24, -36], kB: [-8, -34], fF: [18, -8], fB: [-16, -8], hF: [44, -98], eF: [26, -96], hB: [2, -88], eB: [-6, -78] });
+
+const PTS = ['head', 'chest', 'hip', 'fF', 'fB', 'kF', 'kB', 'hF', 'hB', 'eF', 'eB'];
+
+// Joints only bend the way real ones do, in the figure's own facing-right space (y down):
+// an elbow folds the forearm toward the front of the body (ARM_BEND), a knee folds the shin back (KNEE_BEND).
+// Pass the bend as the last argument; the hint then only matters when the limb is almost straight.
+const ARM_BEND = -1, KNEE_BEND = 1;
+function ik(a, b, l1, l2, hint, bend) {
+  const dx = b[0] - a[0], dy = b[1] - a[1];
+  let d = Math.hypot(dx, dy);
+  const base = Math.atan2(dy, dx);
+  // Ease into full extension so a straightening limb's joint doesn't race across the last few units.
+  const L = l1 + l2, soft = L * 0.96;
+  if (d > soft) {
+    d = soft + (L - soft) * (1 - Math.exp(-(d - soft) / (L - soft)));
+  }
+  d = Math.max(Math.abs(l1 - l2) + 0.01, Math.min(L - 0.001, d));
+  const c = Math.max(-1, Math.min(1, (l1 * l1 + d * d - l2 * l2) / (2 * l1 * d)));
+  const ang = Math.acos(c);
+  const j1 = [a[0] + l1 * Math.cos(base + ang), a[1] + l1 * Math.sin(base + ang)];
+  const j2 = [a[0] + l1 * Math.cos(base - ang), a[1] + l1 * Math.sin(base - ang)];
+  if (bend) {
+    const side = (j) => (j[0] - a[0]) * (b[1] - j[1]) - (j[1] - a[1]) * (b[0] - j[0]);
+    return Math.sign(side(j1)) === bend ? j1 : j2;
+  }
+  const d1 = Math.hypot(j1[0] - hint[0], j1[1] - hint[1]);
+  const d2 = Math.hypot(j2[0] - hint[0], j2[1] - hint[1]);
+  return d1 < d2 ? j1 : j2;
+}
+function catmull(p0, p1, p2, p3, t) {
+  const t2 = t * t, t3 = t2 * t;
+  return 0.5 * (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3);
+}
+function pathPose(list, u) {
+  const n = list.length - 1;
+  const x = Math.min(n - 1e-6, Math.max(0, u * n));
+  const i = Math.floor(x), t = x - i;
+  const a = list[Math.max(0, i - 1)], b = list[i], c = list[i + 1], d = list[Math.min(n, i + 2)];
+  const o = { face: lerp(b.face, c.face, t), hang: lerp(b.hang ?? 1, c.hang ?? 1, t) };
+  for (const k of PTS) {
+    o[k] = [catmull(a[k][0], b[k][0], c[k][0], d[k][0], t), catmull(a[k][1], b[k][1], c[k][1], d[k][1], t)];
+  }
+  return o;
+}
+
+// An Actor plays queued pose steps: actor.push({ pose: P.crouch, d: 0.12 }, { pose: P.leap, d: 0.2, ez: 'out' }).
+// A step can also be { path: [P.a, P.b, P.c], d } for a smooth curve through several poses, or { fn: () => {} } to run code.
+class Actor {
+  constructor(pose) {
+    this.pose = pose || P.ready;
+    this.q = [];
+    this.step = null;
+    this.t = 0;
+    this.id = Math.random().toString(36).slice(2);
+  }
+  push(...steps) {
+    this.q.push(...steps);
+  }
+  clear() {
+    this.q = [];
+    this.step = null;
+  }
+  get idle() {
+    return !this.step && !this.q.length;
+  }
+  update(dt) {
+    for (let guard = 0; guard < 20; guard++) {
+      if (!this.step) {
+        if (!this.q.length) {
+          return;
+        }
+        this.step = this.q.shift();
+        this.t = 0;
+        if (this.step.fn) {
+          const fn = this.step.fn;
+          this.step = null;
+          fn();
+          continue;
+        }
+        const targets = this.step.path || (this.step.pose ? [this.step.pose] : [this.pose]);
+        this.step.list = [this.pose, ...targets];
+      }
+      this.t += dt;
+      const s = this.step;
+      const k = Math.min(1, this.t / s.d);
+      this.pose = pathPose(s.list, (EASE[s.ez] || EASE.soft)(k));
+      if (k < 1) {
+        return;
+      }
+      dt = this.t - s.d;
+      this.step = null;
+    }
+  }
+}
+
+// A back hand resting low under the shoulder hangs from a nearly straight arm, the way a relaxed arm does.
+// Set hang: 0 on a pose when the back hand has to work there (it blends between poses like any number).
+function relax(sh, t, amount) {
+  const dx = t[0] - sh[0], dy = t[1] - sh[1];
+  const d = Math.hypot(dx, dy);
+  const want = (UARM + FARM) * 0.96;
+  if (dy <= 0 || d < 1 || d >= want) {
+    return t;
+  }
+  const w = (amount ?? 1) * Math.min(1, Math.max(0, (dy / d - 0.8) / 0.18));
+  const k = w * w * (3 - 2 * w);
+  const nd = d + (want - d) * k;
+  return [sh[0] + (dx / d) * nd, sh[1] + (dy / d) * nd];
+}
+function reach(a, b, max) {
+  const dx = b[0] - a[0], dy = b[1] - a[1];
+  const d = Math.hypot(dx, dy);
+  if (d <= max) {
+    return b;
+  }
+  return [a[0] + (dx / d) * max, a[1] + (dy / d) * max];
+}
+function breathe(p, amt) {
+  if (!amt) {
+    return p;
+  }
+  const o = Object.assign({}, p);
+  const up = (v, k) => [v[0], v[1] - amt * k];
+  o.head = up(p.head, 1);
+  o.chest = up(p.chest, 0.85);
+  o.hF = up(p.hF, 0.6);
+  o.hB = up(p.hB, 0.6);
+  return o;
+}
+const prevJ = {};
+function mirrorJoint(a, b, j) {
+  const dx = b[0] - a[0], dy = b[1] - a[1];
+  const L2 = dx * dx + dy * dy || 1;
+  const t = ((j[0] - a[0]) * dx + (j[1] - a[1]) * dy) / L2;
+  const px = a[0] + dx * t, py = a[1] + dy * t;
+  return [2 * px - j[0], 2 * py - j[1]];
+}
+function ikC(key, a, b, l1, l2, hint, bend) {
+  const j = ik(a, b, l1, l2, hint, bend);
+  if (bend) {
+    prevJ[key] = j;
+    return j;
+  }
+  const pj = prevJ[key];
+  if (pj) {
+    const alt = mirrorJoint(a, b, j);
+    const dj = Math.hypot(j[0] - pj[0], j[1] - pj[1]);
+    const da = Math.hypot(alt[0] - pj[0], alt[1] - pj[1]);
+    const dh = Math.hypot(j[0] - hint[0], j[1] - hint[1]) - Math.hypot(alt[0] - hint[0], alt[1] - hint[1]);
+    if (da + 1.5 < dj && Math.abs(dh) < 4) {
+      prevJ[key] = alt;
+      return alt;
+    }
+  }
+  prevJ[key] = j;
+  return j;
+}
+// Figure styles: pick one for the whole game with FIG_STYLE, or per figure with opts.style.
+// See references/figure-styles.png. Poses, props and pnpm game:motion work the same in every style.
+//   classic      solid head, thick torso, grey far limbs: the house hero
+//   doodle       big hollow round head with two line eyes on a thin, even stick body
+//   doodleshirt  doodle in a shirt; opts.shirt sets the colour (team colours, goons in grey)
+//   sketch       hollow wobbly head and thin pen lines that redraw a few times a second
+//   chunky       toy-like: thicker limbs, round mitten hands and little boots
+//   googly       a bigger solid head with googly eyes looking the way the figure faces
+let FIG_STYLE = 'classic';
+const BODY = {
+  classic: { head: 1, arm: 1, leg: 1, torso: TORSO },
+  doodle: { head: 1.75, arm: 1, leg: 0.92, torso: 4.8, hollow: true, sameFar: true, eyes: true },
+  doodleshirt: { head: 1.75, arm: 1, leg: 0.92, torso: 4.8, hollow: true, sameFar: true, eyes: true, shirt: true },
+  sketch: { head: 1.6, arm: 0.78, leg: 0.74, torso: 3.6, hollow: true, sameFar: true, sketch: true },
+  chunky: { head: 1.15, arm: 1.45, leg: 1.45, torso: TORSO * 1.3, mitts: true },
+  googly: { head: 1.6, arm: 1, leg: 1, torso: TORSO, googly: true },
+};
+
+let SK = null;
+function jit(i) {
+  const v = Math.sin((SK ? SK.seed : 0) * 12.9898 + i * 78.233) * 43758.5453;
+  return v - Math.floor(v) - 0.5;
+}
+function sketchStroke(pts, w) {
+  for (let pass = 0; pass < 2; pass++) {
+    ctx.lineWidth = pass ? w * 0.55 : w;
+    ctx.globalAlpha = pass ? 0.55 : 1;
+    ctx.beginPath();
+    for (let s = 0; s < pts.length - 1; s++) {
+      const a = pts[s], b = pts[s + 1];
+      const dx = b[0] - a[0], dy = b[1] - a[1];
+      const L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L;
+      for (let i = 0; i <= 4; i++) {
+        const t = i / 4;
+        const off = jit(s * 10 + i + pass * 50) * (pass ? 1.6 : 0.9) * Math.sin(t * Math.PI + 0.3);
+        const ext = pass && s === 0 && i === 0 ? -2 : pass && s === pts.length - 2 && i === 4 ? 2 : 0;
+        const px = a[0] + dx * t + nx * off + (dx / L) * ext, py = a[1] + dy * t + ny * off + (dy / L) * ext;
+        if (s === 0 && i === 0) {
+          ctx.moveTo(px, py);
+        } else {
+          ctx.lineTo(px, py);
+        }
+      }
+    }
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+// tag ({ limb: 'arm' | 'leg', id }) marks a limb for pnpm game:motion, which checks every tagged limb by id.
+function strokePath(pts, w, col, tag) {
+  ctx.strokeStyle = col;
+  ctx.lineWidth = w;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  if (SK) {
+    sketchStroke(pts, w);
+    return;
+  }
+  ctx.beginPath();
+  ctx.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length; i++) {
+    ctx.lineTo(pts[i][0], pts[i][1]);
+  }
+  ctx.stroke();
+}
+function figFill(fill, lw, stroke) {
+  if (fill) {
+    ctx.fillStyle = fill;
+    ctx.fill();
+  }
+  ctx.lineWidth = lw;
+  ctx.strokeStyle = stroke;
+  ctx.lineJoin = 'round';
+  ctx.stroke();
+}
+function figSeg(a, b, w, col) {
+  ctx.strokeStyle = col;
+  ctx.lineWidth = w;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(a[0], a[1]);
+  ctx.lineTo(b[0], b[1]);
+  ctx.stroke();
+}
+function drawShirt(p, u, n, J, fill) {
+  const c = p.chest, h = p.hip;
+  const pt = (b, side, w, along) => [b[0] + n[0] * side * w + u[0] * along, b[1] + n[1] * side * w + u[1] * along];
+  ctx.beginPath();
+  const q = [pt(c, 1, 6.5, 1), pt(c, -1, 6.5, 1), pt(h, -1, 9.5, -8), pt(h, 1, 9.5, -8)];
+  ctx.moveTo(q[0][0], q[0][1]);
+  for (const v of q.slice(1)) {
+    ctx.lineTo(v[0], v[1]);
+  }
+  ctx.closePath();
+  figFill(fill, 2 * J.m, J.ink);
+  figSeg(pt(h, 1, 8, 6), pt(h, -1, 8, 6), 2 * J.m, J.ink);
+}
+function drawMitt(h, col, m) {
+  ctx.beginPath();
+  ctx.arc(h[0], h[1], 4.8, 0, Math.PI * 2);
+  figFill('#fff', 2.2 * m, col);
+}
+function drawBoot(f, col) {
+  ctx.fillStyle = col;
+  ctx.beginPath();
+  ctx.ellipse(f[0] + 3.5, f[1] + 1.5, 7.5, 4.2, 0, 0, Math.PI * 2);
+  ctx.fill();
+}
+function drawHead(B, hc, hr, ink, m) {
+  ctx.beginPath();
+  if (B.sketch) {
+    const a0 = jit(5) * 3;
+    for (let i = 0; i <= 26; i++) {
+      const a = a0 + (i / 24) * Math.PI * 2;
+      const r = hr * (1 + 0.06 * Math.sin(a * 3 + SK.seed));
+      ctx[i ? 'lineTo' : 'moveTo'](hc[0] + Math.cos(a) * r, hc[1] + Math.sin(a) * r);
+    }
+    figFill('#fff', 2.4 * m, ink);
+    return;
+  }
+  ctx.arc(hc[0], hc[1], hr, 0, Math.PI * 2);
+  if (!B.hollow) {
+    ctx.fillStyle = ink;
+    ctx.fill();
+  } else {
+    figFill('#fff', 3.6 * m, ink);
+  }
+  if (B.eyes) {
+    const y0 = hc[1] - hr * 0.22, y1 = hc[1] + hr * 0.12;
+    figSeg([hc[0] + hr * 0.12, y0], [hc[0] + hr * 0.12, y1], 2.6 * m, ink);
+    figSeg([hc[0] + hr * 0.52, y0], [hc[0] + hr * 0.52, y1], 2.6 * m, ink);
+  }
+  if (B.googly) {
+    const r = hr * 0.34;
+    for (const [ex, ey] of [[hc[0] + hr * 0.02, hc[1] - hr * 0.18], [hc[0] + hr * 0.6, hc[1] - hr * 0.12]]) {
+      ctx.beginPath();
+      ctx.arc(ex, ey, r, 0, Math.PI * 2);
+      figFill('#fff', 1.1 * m, ink);
+      ctx.fillStyle = ink;
+      ctx.beginPath();
+      ctx.arc(ex + r * 0.38, ey + r * 0.1, r * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+// opts: { flip: true } faces left, { ink, far } recolours (goons are drawn all grey), { scale } resizes,
+// { style, shirt } pick the body (see FIG_STYLE), { lw } thickens every line (icons, share images),
+// { rot, pivot } tips the whole body around a point in figure space (falls, rolls), { seed } varies sketch lines,
+// { live: false } for one-off drawings such as the share image (skips joint smoothing between frames),
+// and under/mid/over(J) draw props behind the body, between the body and the front arm, and on top.
+// J gives the joints in figure space: head (centre), hr (head radius), k (head scale for hats), chest, hip,
+// handF, handB, eF, eB, ax (the pose's prop angle), ink, far, m (line weight) and goon.
+function drawFigure(a, x, y, breath, opts) {
+  const o = opts || {};
+  const style = o.style || FIG_STYLE;
+  const B = BODY[style] || BODY.classic;
+  const m = o.lw || 1;
+  const ink = o.ink || COL.fig || COL.ink;
+  const far = B.sameFar ? ink : o.far || FAR;
+  const p = breathe(a.pose, breath || 0);
+  const af = Math.min(1, Math.abs(p.face));
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale((o.flip ? -1 : 1) * (o.scale || 1), o.scale || 1);
+  if (o.rot) {
+    const pv = o.pivot || [0, -8];
+    ctx.translate(pv[0], pv[1]);
+    ctx.rotate(o.rot);
+    ctx.translate(-pv[0], -pv[1]);
+  }
+  SK = B.sketch ? { seed: (o.seed || 0) * 7.3 + Math.floor(performance.now() / 130) * 3.1 } : null;
+  const sx = p.chest[0] - p.hip[0], sy = p.chest[1] - p.hip[1];
+  const sl = Math.hypot(sx, sy) || 1;
+  const u = [sx / sl, sy / sl];
+  const n = [-u[1], u[0]];
+  const sideOff = 6.2 * (1 - af);
+  const shF = [p.chest[0] + n[0] * sideOff - u[0], p.chest[1] + n[1] * sideOff - u[1]];
+  const shB = [p.chest[0] - n[0] * sideOff - u[0], p.chest[1] - n[1] * sideOff - u[1]];
+  const key = a.id || 'me';
+  const solve = o.live === false ? (k, aa, bb, l1, l2, h, bd) => ik(aa, bb, l1, l2, h, bd) : (k, aa, bb, l1, l2, h, bd) => ikC(key + k, aa, bb, l1, l2, h, bd);
+  const kF = solve('kF', p.hip, p.fF, THIGH, SHIN, p.kF, KNEE_BEND);
+  const kB = solve('kB', p.hip, p.fB, THIGH, SHIN, p.kB, KNEE_BEND);
+  const handF = reach(shF, p.hF, UARM + FARM);
+  const handB = reach(shB, relax(shB, p.hB, p.hang), UARM + FARM);
+  const eF = solve('eF', shF, handF, UARM, FARM, p.eF, ARM_BEND);
+  const eB = solve('eB', shB, handB, UARM, FARM, p.eB, ARM_BEND);
+  const hr = HEAD_R * B.head;
+  const hd = [p.head[0] - p.chest[0], p.head[1] - p.chest[1]];
+  const hl = Math.hypot(hd[0], hd[1]) || 1;
+  const hu = [hd[0] / hl, hd[1] / hl];
+  const neck = B.hollow ? 13 + hr : 20.5 + (hr - HEAD_R) * 0.9;
+  const hc = [p.chest[0] + hu[0] * neck, p.chest[1] + hu[1] * neck];
+  const J = { head: hc, hr, k: B.head, chest: p.chest, hip: p.hip, handF, handB, eF, eB, shF, shB, ax: p.ax || 0, ink, far, m, goon: !!o.goon, style };
+  const tag = (limb, side) => ({ limb, id: key + limb + side });
+  if (o.under) {
+    o.under(J);
+  }
+  strokePath([shB, eB, handB], ARM * m * B.arm, far, tag('arm', 'B'));
+  if (B.mitts) {
+    drawMitt(handB, far, m);
+  }
+  strokePath([p.hip, kB, p.fB], LIMB * m * B.leg, far, tag('leg', 'B'));
+  if (B.mitts) {
+    drawBoot(p.fB, far);
+  }
+  const neckTop = B.hollow ? [hc[0] - hu[0] * hr, hc[1] - hu[1] * hr] : [p.chest[0] + u[0] * 0.5, p.chest[1] + u[1] * 0.5];
+  strokePath([[p.hip[0] + u[0], p.hip[1] + u[1]], neckTop], B.torso * m, ink);
+  strokePath([p.hip, kF, p.fF], LIMB * m * B.leg, ink, tag('leg', 'F'));
+  if (B.mitts) {
+    drawBoot(p.fF, ink);
+  }
+  if (B.shirt) {
+    drawShirt(p, u, n, J, o.shirt || COL.butterHi || '#fcd34d');
+  }
+  drawHead(B, hc, hr, ink, m);
+  if (o.mid) {
+    o.mid(J);
+  }
+  strokePath([shF, eF, handF], ARM * m * B.arm, ink, tag('arm', 'F'));
+  if (B.mitts) {
+    drawMitt(handF, ink, m);
+  }
+  if (o.over) {
+    o.over(J);
+  }
+  SK = null;
+  ctx.restore();
+  return J;
+}
+
+// ── Ink drawing ────────────────────────────────────────────────────────────
+// Ground is a wobbly line at y = 0 in world space, never a filled floor.
+
+function line(x0, y0, x1, y1) {
+  ctx.beginPath();
+  ctx.moveTo(x0, y0);
+  ctx.lineTo(x1, y1);
+  ctx.stroke();
+}
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+const WOBBLE = Array.from({ length: 512 }, (_, i) => Math.sin(i * 0.37) * 0.35 + Math.sin(i * 1.71 + 1) * 0.22);
+function drawGround(xl, xr) {
+  ctx.strokeStyle = COL.ink;
+  ctx.lineWidth = 2.2;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  const x0 = Math.floor(xl / 6) * 6;
+  for (let x = x0; x <= xr + 6; x += 6) {
+    const w = WOBBLE[((x / 6) % 512 + 512) % 512];
+    if (x === x0) {
+      ctx.moveTo(x, w);
+    } else {
+      ctx.lineTo(x, w);
+    }
+  }
+  ctx.stroke();
+}
+function contactShadow(x, w, a, y) {
+  ctx.save();
+  ctx.fillStyle = `rgba(0,0,0,${a})`;
+  ctx.beginPath();
+  ctx.ellipse(x, (y || 0) + 1.2, w, 2.4, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+// Fill and outline the current path: roundRect(...); inkShape('#fff', 1.5);
+function inkShape(fill, lw) {
+  ctx.fillStyle = fill;
+  ctx.fill();
+  ctx.lineWidth = lw || 1.5;
+  ctx.strokeStyle = COL.ink;
+  ctx.lineJoin = 'round';
+  ctx.stroke();
+}
+// A thick outlined stick, for handles, poles, planks.
+function inkBar(x0, y0, x1, y1, w, fill) {
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = COL.ink;
+  ctx.lineWidth = w + 3;
+  line(x0, y0, x1, y1);
+  ctx.strokeStyle = fill;
+  ctx.lineWidth = w;
+  line(x0, y0, x1, y1);
+}
+
+// ── Popups, particles and shake ────────────────────────────────────────────
+// popup('Perfect!', 'CHAIN ×2', true) over the action; burst() for hits; dust() for landings.
+// Call updateFx(dt) in update() and drawBits(); drawPopups(left, right) last in render(), in world space.
+
+const popups = [];
+const bits = [];
+let shake = 0, shakeV = 0;
+
+function popup(text, sub, hot, x, y) {
+  popups.push({ text, sub, hot, x, y, t: 0 });
+}
+function burst(x, y, n) {
+  const cols = ['#141414', '#141414', '#8d8d8d', '#c8c8c8'];
+  for (let i = 0; i < n; i++) {
+    const a = -Math.PI / 2 + (Math.random() - 0.5) * 2.4;
+    const sp = 70 + Math.random() * 120;
+    bits.push({ x: x + (Math.random() - 0.5) * 30, y: y - 3, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: Math.random() * 6.28, vr: (Math.random() - 0.5) * 18, c: cols[i % cols.length], t: 0, life: 0.8 + Math.random() * 0.5, w: 2 + Math.random() * 1.6, g: 260, drag: 1.5 });
+  }
+}
+function dust(x, y, w, n) {
+  for (let i = 0; i < n; i++) {
+    const side = i % 2 ? 1 : -1;
+    bits.push({ x: x + side * (w / 2 - 2 - Math.random() * 6), y: y - 1, vx: side * (35 + Math.random() * 75), vy: -(4 + Math.random() * 22), r: (Math.random() - 0.5) * 0.5, vr: (Math.random() - 0.5) * 4, c: i % 3 ? '#b0b0b0' : '#8d8d8d', t: 0, life: 0.3 + Math.random() * 0.25, w: 2 + Math.random() * 2.5, g: 80, drag: 5 });
+  }
+}
+// kick() on big moments; offset the camera by `shake` pixels in render().
+function kick(amount) {
+  shakeV += amount;
+}
+function updateFx(dt) {
+  shakeV += (-260 * shake - 15 * shakeV) * dt;
+  shake += shakeV * dt;
+  for (let i = popups.length - 1; i >= 0; i--) {
+    popups[i].t += dt;
+    if (popups[i].t > 1.1) {
+      popups.splice(i, 1);
+    }
+  }
+  for (let i = bits.length - 1; i >= 0; i--) {
+    const b = bits[i];
+    b.t += dt;
+    b.vy += b.g * dt;
+    b.vx *= 1 - Math.min(1, b.drag * dt);
+    b.x += b.vx * dt;
+    b.y += b.vy * dt;
+    b.r += b.vr * dt;
+    if (b.t > b.life) {
+      bits.splice(i, 1);
+    }
+  }
+}
+function drawBits() {
+  for (const b of bits) {
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, 1 - b.t / b.life);
+    ctx.translate(b.x, b.y);
+    ctx.rotate(b.r);
+    ctx.fillStyle = b.c;
+    ctx.fillRect(-b.w / 2, -0.9, b.w, 1.8);
+    ctx.restore();
+  }
+}
+// left/right are the visible world edges, so popups never get cut off on narrow phones.
+function drawPopups(left, right) {
+  for (const p of popups) {
+    const k = p.t / 1.1;
+    const a = k < 0.12 ? k / 0.12 : clamp(1 - (k - 0.55) / 0.45, 0, 1);
+    const y = p.y - 26 - 24 * EASE.out(Math.min(1, k * 1.3));
+    const sc = 1 + 0.22 * Math.max(0, 1 - k * 5);
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.font = "400 24px 'Balsamiq Sans', system-ui, sans-serif";
+    let half = ctx.measureText(p.text).width / 2;
+    if (p.sub) {
+      ctx.font = "400 10px 'Balsamiq Sans', system-ui, sans-serif";
+      half = Math.max(half, ctx.measureText(p.sub).width / 2 + p.sub.length * 0.75);
+    }
+    half = half * sc + 10;
+    const x = right - left > half * 2 ? clamp(p.x, left + half, right - half) : (left + right) / 2;
+    ctx.translate(x, y);
+    ctx.scale(sc, sc);
+    ctx.fillStyle = p.hot ? COL.accent : COL.ink;
+    ctx.font = "400 24px 'Balsamiq Sans', system-ui, sans-serif";
+    ctx.fillText(p.text, 0, 0);
+    if (p.sub) {
+      ctx.font = "400 10px 'Balsamiq Sans', system-ui, sans-serif";
+      ctx.letterSpacing = '1.5px';
+      ctx.fillText(p.sub, 0, 12);
+      ctx.letterSpacing = '0px';
+    }
+    ctx.restore();
+  }
+}
+
+// ── Sound ──────────────────────────────────────────────────────────────────
+// Everything is synthesized. Call audio() inside the first tap/key handler (browsers block sound before that).
+// partial() is a pitched blip, hiss() a filtered noise burst; mix a few for each sound.
+
+let actx = null, bus = null, verb = null;
+function audio() {
+  if (!actx) {
+    try {
+      actx = new (window.AudioContext || window.webkitAudioContext)();
+      const comp = actx.createDynamicsCompressor();
+      comp.threshold.value = -14;
+      comp.ratio.value = 4;
+      comp.connect(actx.destination);
+      bus = actx.createGain();
+      bus.gain.value = 0.9;
+      bus.connect(comp);
+      const len = Math.floor(actx.sampleRate * 1.1);
+      const ir = actx.createBuffer(2, len, actx.sampleRate);
+      for (let c = 0; c < 2; c++) {
+        const d = ir.getChannelData(c);
+        for (let i = 0; i < len; i++) {
+          d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.2);
+        }
+      }
+      const conv = actx.createConvolver();
+      conv.buffer = ir;
+      verb = actx.createGain();
+      verb.gain.value = 0.16;
+      verb.connect(conv).connect(comp);
+    } catch (e) {
+      actx = null;
+    }
+  }
+  if (actx && actx.state === 'suspended') {
+    actx.resume();
+  }
+}
+function voice(wet) {
+  const g = actx.createGain();
+  g.gain.value = 0;
+  g.connect(bus);
+  if (wet) {
+    const w = actx.createGain();
+    w.gain.value = wet;
+    g.connect(w).connect(verb);
+  }
+  return g;
+}
+function partial(freq, f1, dur, vol, type, wet, delay) {
+  if (!actx || vol < 0.003) {
+    return;
+  }
+  const t = actx.currentTime + (delay || 0);
+  const o = actx.createOscillator();
+  const g = voice(wet);
+  o.type = type || 'sine';
+  o.frequency.setValueAtTime(freq, t);
+  if (f1 && f1 !== freq) {
+    o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  }
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(vol, t + 0.003);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g);
+  o.start(t);
+  o.stop(t + dur + 0.05);
+}
+function hiss(dur, vol, type, f0, f1, q, wet, attack, delay) {
+  if (!actx || vol < 0.003) {
+    return;
+  }
+  const t = actx.currentTime + (delay || 0);
+  const n = Math.max(1, Math.floor(actx.sampleRate * dur));
+  const buf = actx.createBuffer(1, n, actx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) {
+    d[i] = Math.random() * 2 - 1;
+  }
+  const src = actx.createBufferSource();
+  src.buffer = buf;
+  const f = actx.createBiquadFilter();
+  f.type = type;
+  f.Q.value = q || 0.7;
+  f.frequency.setValueAtTime(f0, t);
+  if (f1 && f1 !== f0) {
+    f.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  }
+  const g = voice(wet);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(vol, t + (attack || 0.004));
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  src.connect(f).connect(g);
+  src.start(t);
+}
+function buzz(ms) {
+  try {
+    if (navigator.vibrate) {
+      navigator.vibrate(ms);
+    }
+  } catch (e) {
+    return;
+  }
+}
+// A starter set; tune pitches and volumes to the game.
+const SND = {
+  thunk(k) {
+    partial(108, 50, 0.22, 0.6 * k, 'sine', 0.12);
+    hiss(0.07, 0.34 * k, 'bandpass', 430, 240, 1.1, 0.18);
+  },
+  tok(k) {
+    partial(190, 140, 0.07, 0.3 * k, 'sine', 0.1);
+    hiss(0.03, 0.16 * k, 'bandpass', 520, 400, 1.2, 0.1);
+  },
+  whoosh() {
+    hiss(0.25, 0.08, 'bandpass', 600, 1600, 1.4, 0.1, 0.06);
+  },
+  perfect() {
+    partial(1568, 1568, 0.5, 0.035, 'sine', 0.5, 0.04);
+    partial(2093, 2093, 0.45, 0.028, 'sine', 0.5, 0.1);
+  },
+  streak(m) {
+    const base = m >= 6 ? 784 : 659;
+    partial(base, base, 0.22, 0.045, 'triangle', 0.4);
+    partial(base * 1.5, base * 1.5, 0.3, 0.035, 'triangle', 0.4, 0.08);
+  },
+  record() {
+    [523, 659, 784, 1047].forEach((f, i) => {
+      partial(f, f, 0.32, 0.05, 'triangle', 0.45, 0.1 + i * 0.075);
+    });
+  },
+  chime() {
+    partial(784, 784, 0.5, 0.05, 'sine', 0.4);
+    partial(587, 587, 0.7, 0.05, 'sine', 0.4, 0.28);
+  },
+  beep() {
+    partial(1320, 1320, 0.08, 0.03, 'square', 0.1);
+    partial(1320, 1320, 0.08, 0.03, 'square', 0.1, 0.14);
+  },
+  brake() {
+    hiss(0.5, 0.12, 'bandpass', 2400, 900, 4, 0.2, 0.02);
+    partial(90, 60, 0.3, 0.3, 'sine', 0.1);
+  },
+  thud() {
+    partial(100, 45, 0.3, 0.6, 'sine', 0.15);
+    hiss(0.08, 0.3, 'lowpass', 600, 200, 0.7, 0.2);
+  },
+  squeeze() {
+    hiss(0.12, 0.08, 'bandpass', 900, 600, 1.5, 0.1);
+    partial(330, 260, 0.1, 0.05, 'triangle', 0.1);
+  },
+  seat() {
+    partial(140, 90, 0.15, 0.4, 'sine', 0.1);
+    partial(660, 660, 0.15, 0.04, 'triangle', 0.3, 0.06);
+    partial(880, 880, 0.22, 0.04, 'triangle', 0.3, 0.13);
+  },
+  lose() {
+    partial(220, 90, 0.5, 0.25, 'triangle', 0.3);
+    hiss(0.3, 0.1, 'lowpass', 900, 200, 0.7, 0.3);
+  },
+};
+
+// ── Test modes ─────────────────────────────────────────────────────────────
+// ?bot plays by itself like a decent first-timer (reaction delay + aim error), so `pnpm game:check --bot` can
+// measure how long a run lasts and grab a mid-game social image. Set window.__bot = true when it's on.
+// Never save stats in a test mode.
+
+const Q = new URLSearchParams(location.search);
+const BOT = Q.has('bot');
+const TEST = BOT || Q.has('still') || Q.has('autoplay');
+window.__bot = BOT;
+
+function gauss(r) {
+  return (r() + r() + r() - 1.5) / 1.5;
+}
+
+// ── Last Seat ──────────────────────────────────────────────────────────────
+// A Jakarta commuter train. At every stop a seat frees up: hold to walk to it before the other guy does,
+// but let go when the brake light comes on or you go flying. Priority seats belong to someone else.
+
+// The Green Line, Rangkasbitung to Tanah Abang. More people get on at every stop.
+const STATIONS = ['Rangkasbitung', 'Citeras', 'Maja', 'Cikoya', 'Tigaraksa', 'Tenjo', 'Daru', 'Cilejit', 'Parung Panjang', 'Jatake', 'Cicayur', 'Cisauk', 'Serpong', 'Rawa Buntu', 'Sudimara', 'Jurang Mangu', 'Pondok Ranji', 'Kebayoran', 'Palmerah', 'Tanah Abang'];
+const LAST = STATIONS[STATIONS.length - 1];
+const BANNER_Y = -292, SQUEEZE = 0.4;
+const SEAT = 30, BENCH = -45, SLOT = 50, WALKSP = 160;
+
+const $ = (id) => document.getElementById(id);
+window.__freeze = Q.has('still');
+
+const store = {
+  get(k, d) {
+    try {
+      const v = localStorage.getItem(SLUG + '.' + k);
+      return v === null ? d : JSON.parse(v);
+    } catch (e) {
+      return d;
+    }
+  },
+  set(k, v) {
+    if (TEST) {
+      return;
+    }
+    try {
+      localStorage.setItem(SLUG + '.' + k, JSON.stringify(v));
+    } catch (e) {
+      return;
+    }
+  },
+};
+const life = Object.assign({ best: 0, games: 0, seats: 0, kind: 0, falls: 0, seenHint: false }, TEST ? {} : store.get('life', {}));
+
+function resize() {
+  fitView();
+  cv.width = Math.round(cw * dpr);
+  cv.height = Math.round(ch * dpr);
+}
+addEventListener('resize', resize);
+resize();
+
+// Poses.
+P.strap = mk({ hF: [4, -128], eF: [12, -108], hB: [-2, -57] });
+// Walking down a train you keep the front hand up, ready for the next strap; the back arm swings.
+const SWING = (f, b) => ({ hF: [f[0], -102 + (f[1] + 60) * 0.5], eF: [f[0] - 2, -86], hB: b, hang: 0 });
+const WALK = [
+  mk(Object.assign({ hip: [0, -63], fF: [18, -8], fB: [-16, -8], kF: [24, -36], kB: [-4, -36] }, SWING([16, -62], [-2, -57]))),
+  mk(Object.assign({ hip: [0, -66], fF: [2, -8], fB: [-6, -22], kF: [12, -38], kB: [10, -40] }, SWING([10, -60], [3, -58]))),
+  mk(Object.assign({ hip: [0, -63], fF: [-16, -8], fB: [18, -8], kF: [-2, -36], kB: [24, -36] }, SWING([4, -57], [9, -60]))),
+  mk(Object.assign({ hip: [0, -66], fF: [-6, -22], fB: [2, -8], kF: [10, -40], kB: [12, -38] }, SWING([10, -60], [3, -58]))),
+];
+WALK.push(WALK[0]);
+P.sit = mk({ head: [2, -102], chest: [1, -77], hip: [0, -46], fF: [26, -8], fB: [20, -8], kF: [26, -46], kB: [20, -46], hF: [18, -52], eF: [6, -60], hB: [14, -50], eB: [2, -58], hang: 0 });
+P.phone = mk(P.sit, P.sit);
+Object.assign(P.phone, { head: [4, -100], hF: [16, -68], eF: [4, -60], hB: [12, -66], eB: [0, -58] });
+P.flop = mk(P.sit, P.sit);
+Object.assign(P.flop, { head: [-4, -103], chest: [-3, -78], hF: [20, -86], eF: [10, -76], hB: [-6, -82], eB: [4, -70] });
+P.bent = mk({ head: [12, -114], chest: [7, -91], hF: [26, -60], eF: [14, -78], hB: [0, -58] });
+// Expecting: leaning back a little, one hand on the bump, one on the lower back.
+// Standing riders lurch forward on the brakes but keep hold of the strap.
+P.lurch = mk({ head: [7, -119], chest: [5, -95], hF: [6, -128], eF: [14, -108], hB: [2, -57] });
+P.preg = mk({ head: [-2, -118], chest: [-2, -96], hF: [18, -70], eF: [8, -82], hB: [-6, -62], eB: [-10, -76], hang: 0 });
+
+function blend(a, b, k) {
+  const o = { face: 1, hang: lerp(a.hang ?? 1, b.hang ?? 1, k) };
+  for (const key of PTS) {
+    o[key] = lerp2(a[key], b[key], k);
+  }
+  return o;
+}
+// Poses ease on a critically damped spring, so a joint never snaps when the target pose changes.
+function spring(o, target, dt, w = 13) {
+  const v = o.v || (o.v = {});
+  const k = w * w, c = 2 * w;
+  const pose = { face: 1, hang: lerp(o.pose.hang ?? 1, target.hang ?? 1, Math.min(1, dt * 6)) };
+  for (const key of PTS) {
+    const p = o.pose[key], t = target[key], vel = v[key] || (v[key] = [0, 0]);
+    vel[0] += (k * (t[0] - p[0]) - c * vel[0]) * dt;
+    vel[1] += (k * (t[1] - p[1]) - c * vel[1]) * dt;
+    pose[key] = [p[0] + vel[0] * dt, p[1] + vel[1] * dt];
+  }
+  o.pose = pose;
+}
+
+function walkPose(ph) {
+  const u = ((ph / (Math.PI * 2)) % 1 + 1) % 1;
+  return pathPose(WALK, u);
+}
+
+// Background passengers on the bench, everyone on their phone.
+const sitters = [];
+for (let sx = -SLOT * 14 + SEAT; sx <= SLOT * 14 + SEAT; sx += SLOT) {
+  if (sx !== SEAT) {
+    sitters.push({ id: 's' + sx, x: sx, pose: P.phone, ph: Math.random() * 6 });
+  }
+}
+
+let mode = 'menu', phase = 'banner';
+let clock = 0, runTime = 0, scroll = 0, trainV = 1;
+let holding = false;
+let score = 0, stop = 0, kind = 0, falls = 0, lastResult = null, lastPrio = false;
+let R = null, phaseT = 0, crowd = [], boarded = 0, gotOff = 0;
+const me = { id: 'me', pose: P.strap };
+
+function rider(x, dir, sp, type, delay) {
+  return { id: 'r' + Math.random().toString(36).slice(2), x, dir, sp, type, delay, st: 'walk', ph: Math.random() * 6, pose: P.strap };
+}
+
+// People who got on stand around holding straps. Squeezing past them slows everyone down.
+function layoutCrowd() {
+  // Fixed standing spots along the aisle, kept clear of the seat and of where you start.
+  const spots = [];
+  for (let cx = -215; cx <= 275; cx += 38) {
+    if (Math.abs(cx - SEAT) >= 34 && Math.abs(cx - (SEAT - 170)) >= 28) {
+      spots.push(cx);
+    }
+  }
+  for (let i = spots.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [spots[i], spots[j]] = [spots[j], spots[i]];
+  }
+  crowd.length = Math.min(crowd.length, spots.length);
+  crowd = crowd.map((_, i) => ({ id: 'c' + stop + '_' + i, x: spots[i] + (Math.random() - 0.5) * 8, pose: P.strap, flip: Math.random() < 0.5, ph: Math.random() * 6 }));
+}
+
+function newRound() {
+  const n = stop;
+  // Only the priority seat is left to chance. The car fills up stop by stop: more riders racing you,
+  // more people standing in the aisle.
+  const prio = n >= 1 && !lastPrio && Math.random() < 0.22;
+  lastPrio = prio;
+  const kinds = ['tie', 'tote', 'cap'];
+  const base = Math.min(170, 62 + n * 8);
+  const rs = [];
+  if (prio) {
+    rs.push(rider(SEAT + 190, -1, 45, n % 2 ? 'cane' : 'belly', 0));
+  } else {
+    rs.push(rider(SEAT + 210, -1, base, kinds[n % 3], 0));
+    if (n >= 3) {
+      rs.push(rider(SEAT + 340, -1, base * 1.25, kinds[(n + 1) % 3], 0.3));
+    }
+    if (n >= 7) {
+      rs.push(rider(SEAT - 245, 1, base * 1.15, kinds[(n + 2) % 3], 0.9));
+    }
+    if (n >= 12) {
+      rs.push(rider(SEAT + 440, -1, base * 1.5, kinds[n % 3], 0.4));
+    }
+  }
+  gotOff = 0;
+  const want = Math.floor(n * 0.6);
+  boarded = Math.max(0, want - crowd.length);
+  for (let i = 0; i < boarded; i++) {
+    crowd.push({});
+  }
+  layoutCrowd();
+  R = {
+    prio, rs, squeezed: new Set(),
+    p: { x: SEAT - 170 - Math.random() * 10, st: 'walk', fall: 0, rot: 0, ph: 0 },
+    nextJolt: 0.9 + Math.random() * 1.1, warn: 0, jolt: 0, warnDur: Math.max(0.36, 0.75 - n * 0.025), winner: null,
+  };
+  me.id = 'me' + stop + '_' + Math.random().toString(36).slice(2, 6);
+  me.pose = P.strap;
+  me.v = {};
+}
+
+function startGame() {
+  audio();
+  mode = 'play';
+  holding = false;
+  score = 0; stop = 0; kind = 0; falls = 0; lastPrio = false; crowd = [];
+  runTime = 0;
+  newRound();
+  arrive();
+  $('overlay').classList.remove('on');
+  $('hud').classList.remove('hidden');
+  $('hint').classList.toggle('hidden', life.seenHint || BOT);
+  updateHud();
+}
+
+// Banners centre on the screen, whatever the camera does on narrow phones.
+function midX() {
+  return toWorld(cw / 2, 0)[0];
+}
+function banner(text, sub, hot) {
+  popups.push({ text, sub, hot, x: midX(), y: BANNER_Y, t: 0, centred: true });
+}
+
+function arrive() {
+  popups.length = 0;
+  phase = 'banner';
+  phaseT = 1.1;
+  const moved = boarded ? `${boarded} GOT ON` : gotOff ? `${gotOff} GOT OFF` : '';
+  const sub = (R.prio ? 'PRIORITY SEAT FREE' : 'SEAT FREE') + (moved && stop ? ` · ${moved}` : '');
+  banner(STATIONS[stop], sub, R.prio);
+  SND.chime();
+}
+
+function endGame() {
+  mode = 'over';
+  holding = false;
+  life.games++;
+  life.seats += score;
+  life.kind += kind;
+  life.falls += falls;
+  const isBest = score > life.best;
+  life.best = Math.max(life.best, score);
+  store.set('life', life);
+  lastResult = { score, isBest, kind, falls, stop: STATIONS[stop], time: runTime };
+  window.__lastRun = lastResult;
+  setTimeout(() => {
+    $('endScore').textContent = score;
+    $('endBest').textContent = life.best;
+    $('endChip').style.display = isBest && score > 0 ? '' : 'none';
+    $('endFoot').innerHTML = lifetimeLine();
+    $('startCard').classList.remove('show');
+    $('endCard').classList.add('show');
+    $('overlay').classList.add('on');
+    $('hud').classList.add('hidden');
+    $('hint').classList.add('hidden');
+  }, 1100);
+}
+
+function lifetimeLine() {
+  if (!life.games) {
+    return '';
+  }
+  return `Best ${life.best} · ${life.kind} seats given up · ${life.falls} ${life.falls === 1 ? 'fall' : 'falls'}<br>${life.games} ${life.games === 1 ? 'ride' : 'rides'} · ${life.seats.toLocaleString()} seats grabbed`;
+}
+
+function updateHud() {
+  const el = $('score');
+  if (el.textContent !== String(score)) {
+    el.classList.remove('bump');
+    void el.offsetWidth;
+    el.classList.add('bump');
+  }
+  el.textContent = score;
+  $('best').textContent = Math.max(life.best, score);
+  $('stops').textContent = STATIONS.length - 1 - stop;
+}
+
+function press() {
+  audio();
+  if (mode === 'play') {
+    holding = true;
+  }
+}
+function lift() {
+  holding = false;
+}
+cv.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  press();
+});
+addEventListener('pointerup', lift);
+addEventListener('pointercancel', lift);
+addEventListener('blur', lift);
+addEventListener('keydown', (e) => {
+  if (e.code !== 'Space' && e.code !== 'Enter' && e.code !== 'ArrowRight') {
+    return;
+  }
+  e.preventDefault();
+  if (e.repeat) {
+    return;
+  }
+  if (mode !== 'play') {
+    if (mode === 'over' && !$('overlay').classList.contains('on')) {
+      return;
+    }
+    startGame();
+    return;
+  }
+  press();
+});
+addEventListener('keyup', (e) => {
+  if (e.code === 'Space' || e.code === 'Enter' || e.code === 'ArrowRight') {
+    lift();
+  }
+});
+addEventListener('contextmenu', (e) => e.preventDefault());
+$('playBtn').addEventListener('click', startGame);
+$('againBtn').addEventListener('click', startGame);
+$('shareBtn').addEventListener('click', () => share(lastResult));
+
+// The bot reacts to the brake light a beat late and sometimes forgets what a priority seat is.
+const botRng = mulberry(5);
+let botWait = 0, botPrio = null;
+function bot(dt) {
+  botWait -= dt;
+  if (botWait > 0) {
+    return;
+  }
+  botWait = 0.13 + Math.abs(gauss(botRng)) * 0.12;
+  if (R.prio && botPrio !== R) {
+    botPrio = R;
+    R.botGreedy = botRng() < 0.12;
+  }
+  holding = phase === 'race' && R.warn <= 0 && R.jolt <= 0 && (!R.prio || R.botGreedy);
+}
+
+function followCam(dt) {
+  if (cw >= ch || !R) {
+    return;
+  }
+  const tgt = R.winner || R.p.st === 'seat' ? SEAT : (R.p.x + SEAT) / 2;
+  const step = (tgt - camFocus) * Math.min(1, dt * 3);
+  camFocus += step;
+  // Banners ride with the camera so they stay centred on screen while it pans.
+  for (const q of popups) {
+    if (q.centred) {
+      q.x += step;
+    }
+  }
+  cam.x = cw / 2 - camFocus * cam.s;
+}
+
+function update(dt) {
+  clock += dt;
+  updateFx(dt);
+  followCam(dt);
+  const jolting = R && R.jolt > 0;
+  trainV += ((jolting ? 0.15 : phase === 'banner' && mode === 'play' ? 0.4 : 1) - trainV) * Math.min(1, dt * 4);
+  scroll += dt * 150 * trainV;
+  for (const s of sitters) {
+    spring(s, R && R.jolt > 0 ? P.flop : P.phone, dt, 8);
+  }
+  if (!R) {
+    return;
+  }
+  animate(dt);
+  if (mode !== 'play') {
+    return;
+  }
+  runTime += dt;
+  if (BOT) {
+    bot(dt);
+  }
+  if (phase === 'banner') {
+    phaseT -= dt;
+    if (phaseT <= 0) {
+      phase = 'race';
+    }
+    return;
+  }
+  if (phase === 'result') {
+    phaseT -= dt;
+    if (phaseT <= 0) {
+      const ok = (R.winner === 'p') !== R.prio;
+      if (!ok) {
+        endGame();
+        return;
+      }
+      stop++;
+      if (stop >= STATIONS.length - 1) {
+        banner('End of the line', LAST.toUpperCase(), true);
+        SND.record();
+        endGame();
+        return;
+      }
+      newRound();
+      updateHud();
+      arrive();
+    }
+    return;
+  }
+  // Brake cycle: wait, warn (light blinks), jolt.
+  if (R.jolt > 0) {
+    R.jolt -= dt;
+    if (R.jolt <= 0) {
+      R.nextJolt = (1.1 + Math.random() * 1.2) * Math.max(0.55, 1 - stop * 0.035);
+    }
+  } else if (R.warn > 0) {
+    R.warn -= dt;
+    if (R.warn <= 0) {
+      R.jolt = 0.45;
+      kick(70);
+      SND.brake();
+    }
+  } else {
+    R.nextJolt -= dt;
+    if (R.nextJolt <= 0) {
+      R.warn = R.warnDur;
+      SND.beep();
+    }
+  }
+  const J = R.jolt > 0, p = R.p;
+  const crowdAt = (x) => crowd.find((c) => Math.abs(c.x - x) < 16);
+  if (p.st === 'fallen') {
+    p.fall -= dt;
+    if (p.fall <= 0) {
+      p.st = 'walk';
+    }
+  } else if (holding) {
+    if (J) {
+      p.st = 'fallen';
+      p.fall = 1.15;
+      falls++;
+      kick(160);
+      buzz(40);
+      SND.thud();
+      burst(p.x + 40, -8, 10);
+      popup('Oof', 'HOLD ON TIGHT', false, p.x + 30, BANNER_Y);
+    } else {
+      const c = crowdAt(p.x + 10);
+      const sp = WALKSP * (c ? SQUEEZE : 1);
+      if (c && !R.squeezed.has(c.id)) {
+        R.squeezed.add(c.id);
+        if (!popups.some((q) => q.text === 'Excuse me')) {
+          popup('Excuse me', '', false, p.x + 10, BANNER_Y);
+        }
+        SND.squeeze();
+      }
+      p.x += sp * dt;
+      p.ph += sp * dt * 0.075;
+      if (!life.seenHint) {
+        life.seenHint = true;
+        store.set('life', life);
+        $('hint').classList.add('hidden');
+      }
+    }
+  }
+  for (const r of R.rs) {
+    if (r.delay > 0) {
+      r.delay -= dt;
+      continue;
+    }
+    if (J) {
+      continue;
+    }
+    const k = (0.8 + 0.35 * Math.sin(clock * 3.1 + r.ph)) * (crowdAt(r.x + r.dir * 10) ? 0.6 : 1);
+    r.x += r.dir * r.sp * dt * k;
+    r.ph += r.sp * dt * k * 0.075;
+  }
+  if (p.x >= SEAT - 6) {
+    win('p');
+    return;
+  }
+  for (const r of R.rs) {
+    if (r.dir < 0 ? r.x <= SEAT + 6 : r.x >= SEAT - 6) {
+      win('r', r);
+      return;
+    }
+  }
+}
+
+function win(who, r) {
+  R.winner = who;
+  phase = 'result';
+  phaseT = 1.3;
+  holding = false;
+  const p = R.p;
+  if (who === 'p') {
+    p.st = 'seat';
+    dust(SEAT, 0, 30, 6);
+    if (R.prio) {
+      banner('That was a priority seat', 'THE WHOLE CAR SAW', false);
+      SND.lose();
+    } else {
+      score++;
+      banner('Seated', '+1', true);
+      SND.seat();
+    }
+  } else {
+    r.st = 'seat';
+    dust(SEAT, 0, 30, 6);
+    if (R.prio) {
+      score += 2;
+      kind++;
+      banner('Good human', 'LET THEM SIT · +2', true);
+      SND.record();
+    } else {
+      banner('Too slow', `STANDING TILL ${LAST.toUpperCase()}`, false);
+      SND.lose();
+    }
+  }
+  updateHud();
+}
+
+function animate(dt) {
+  const p = R.p;
+  const J = R.jolt > 0;
+  if (p.st === 'seat') {
+    spring(me, P.sit, dt);
+    p.x += (SEAT - p.x) * Math.min(1, dt * 8);
+  } else if (p.st === 'fallen') {
+    spring(me, P.wince, dt);
+  } else if (holding && mode === 'play' && phase === 'race') {
+    spring(me, walkPose(p.ph), dt, 16);
+  } else {
+    spring(me, P.strap, dt);
+  }
+  // The fall tips over on a spring too.
+  const rt = p.st === 'fallen' ? 1.4 : 0, w = p.st === 'fallen' ? 11 : 7;
+  p.rv = (p.rv || 0) + (w * w * (rt - p.rot) - 2 * w * (p.rv || 0)) * dt;
+  p.rot += p.rv * dt;
+  for (const r of R.rs) {
+    const old = r.type === 'cane' || r.type === 'belly';
+    if (r.st === 'seat') {
+      spring(r, P.sit, dt);
+      r.x += (SEAT - r.x) * Math.min(1, dt * 8);
+    } else if (mode === 'play' && phase === 'race' && !J && r.delay <= 0) {
+      let wp = walkPose(r.ph);
+      if (r.type === 'cane') {
+        wp = blend(wp, P.bent, 0.6);
+      } else if (r.type === 'belly') {
+        wp = blend(wp, P.preg, 0.65);
+      }
+      spring(r, wp, dt, 16);
+    } else {
+      spring(r, r.type === 'belly' ? P.preg : old ? P.bent : J ? P.lurch : P.strap, dt);
+    }
+  }
+  for (const c of crowd) {
+    spring(c, J ? P.lurch : P.strap, dt, 10);
+  }
+}
+
+// ── Drawing ────────────────────────────────────────────────────────────────
+
+function drawCar(left, right) {
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  // Windows with the city sliding past.
+  for (let wx = Math.floor((left - SEAT + 25) / 150) * 150 + SEAT - 25; wx < right; wx += 150) {
+    ctx.save();
+    roundRect(wx + 8, -188, 128, 74, 12);
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+    ctx.clip();
+    ctx.strokeStyle = COL.faint;
+    ctx.lineWidth = 1.6;
+    for (let i = 0; i < 9; i++) {
+      const bx = ((i * 97 - scroll * 0.8) % 600 + 600) % 600 - 300;
+      const bh = 22 + ((i * 37) % 40);
+      ctx.strokeRect(bx, -114 - bh, 26 + (i % 3) * 10, bh + 4);
+    }
+    const pole = ((-scroll * 2.2) % 300 + 300) % 300 - 150;
+    line(pole, -190, pole, -110);
+    ctx.restore();
+    ctx.strokeStyle = COL.ink;
+    ctx.lineWidth = 1.8;
+    roundRect(wx + 8, -188, 128, 74, 12);
+    ctx.stroke();
+  }
+  // Grab rail and straps, swinging with the brakes.
+  const sway = Math.sin(clock * 1.6) * 0.06 + (R && R.jolt > 0 ? 0.5 : 0) + (R && R.warn > 0 ? Math.sin(clock * 30) * 0.04 : 0);
+  ctx.strokeStyle = COL.ink;
+  ctx.lineWidth = 2.4;
+  line(left - 20, -214, right + 20, -214);
+  for (let sx = Math.floor((left - SEAT - 25) / SLOT) * SLOT + SEAT + 25; sx < right + SLOT; sx += SLOT) {
+    const a = sway + Math.sin(clock * 2 + sx) * 0.03;
+    const ex = sx + Math.sin(a) * 64, ey = -214 + Math.cos(a) * 64;
+    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = COL.muted;
+    line(sx, -214, ex, ey);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = COL.ink;
+    ctx.beginPath();
+    ctx.arc(ex, ey + 6, 6, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  // Bench.
+  ctx.strokeStyle = COL.ink;
+  roundRect(left - 30, -96, right - left + 60, 46, 8);
+  inkShape('#fff', 2);
+  roundRect(left - 30, BENCH - 5, right - left + 60, 10, 4);
+  inkShape('#fff', 2);
+  ctx.fillStyle = R && R.prio && mode === 'play' ? '#fcd34d' : COL.butter;
+  roundRect(SEAT - 22, BENCH - 4, 44, 8, 3);
+  ctx.fill();
+  if (R && R.prio && mode === 'play') {
+    ctx.fillStyle = COL.umber;
+    ctx.font = "400 10px 'Balsamiq Sans', system-ui, sans-serif";
+    ctx.textAlign = 'center';
+    ctx.fillText('priority', SEAT, -70);
+  }
+  ctx.lineWidth = 2;
+  for (let lx = Math.ceil((left - 30) / 100) * 100; lx < right + 30; lx += 100) {
+    line(lx, BENCH + 5, lx, 0);
+  }
+}
+
+function drawLamp(left, right) {
+  const on = R && mode === 'play' && phase === 'race' && (R.jolt > 0 || (R.warn > 0 && Math.floor(clock * 10) % 2 === 0));
+  ctx.strokeStyle = COL.faint;
+  ctx.lineWidth = 2;
+  line(left - 20, -266, right + 20, -266);
+  ctx.strokeStyle = COL.muted;
+  ctx.lineWidth = 1.4;
+  line(SEAT - 22, -266, SEAT - 22, -252);
+  line(SEAT + 22, -266, SEAT + 22, -252);
+  ctx.fillStyle = '#262626';
+  roundRect(SEAT - 34, -252, 68, 22, 4);
+  ctx.fill();
+  ctx.fillStyle = on ? COL.red : '#4a4a4a';
+  ctx.beginPath();
+  ctx.arc(SEAT - 21, -241, 4.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = on ? '#ff8a8d' : '#6b6b6b';
+  ctx.font = "400 11px 'Balsamiq Sans', system-ui, sans-serif";
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.letterSpacing = '1.5px';
+  ctx.fillText('BRAKE', SEAT - 12, -240.5);
+  ctx.letterSpacing = '0px';
+  ctx.textBaseline = 'alphabetic';
+}
+
+function riderProps(type) {
+  if (type === 'tie') {
+    return { mid: (J) => { ctx.strokeStyle = mixGrey(COL.red); ctx.lineWidth = 2.6; line(J.chest[0] + 2, J.chest[1] + 2, J.chest[0] + 4, J.chest[1] + 16); } };
+  }
+  if (type === 'tote') {
+    return { under: (J) => { ctx.save(); roundRect(J.hip[0] - 14, J.hip[1] - 14, 12, 15, 3); inkShape(mixGrey('#fcd34d'), 1.4); ctx.restore(); } };
+  }
+  if (type === 'cap') {
+    return { over: (J) => { ctx.save(); ctx.beginPath(); ctx.arc(J.head[0], J.head[1] - 1, J.hr + 0.5, Math.PI, 0); inkShape(mixGrey('#5552d4'), 1.4); line(J.head[0], J.head[1] - 1, J.head[0] + J.hr + 6, J.head[1] - 1); ctx.restore(); } };
+  }
+  if (type === 'cane') {
+    return { over: (J) => { ctx.strokeStyle = mixGrey('#c98a4b'); ctx.lineWidth = 3; line(J.handF[0], J.handF[1], J.handF[0] + 6, -8); } };
+  }
+  if (type === 'belly') {
+    // The bump grows out of the torso in the body's own grey, so it reads as part of her, not a ball.
+    return {
+      mid: (J) => {
+        const a = lerp2(J.chest, J.hip, 0.28), b = lerp2(J.chest, J.hip, 0.97), m = lerp2(a, b, 0.55);
+        ctx.beginPath();
+        ctx.moveTo(a[0], a[1]);
+        ctx.bezierCurveTo(m[0] + 16, a[1] + 2, m[0] + 20, b[1] - 4, b[0] + 2, b[1]);
+        ctx.lineTo(b[0], b[1]);
+        ctx.closePath();
+        ctx.fillStyle = '#7f7f7f';
+        ctx.fill();
+        ctx.strokeStyle = '#7f7f7f';
+        ctx.lineWidth = 3;
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+      },
+    };
+  }
+  return {};
+}
+function mixGrey(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  const m = (c) => Math.round(c * 0.38 + 0xac * 0.62);
+  return `rgb(${m(n >> 16)},${m((n >> 8) & 255)},${m(n & 255)})`;
+}
+function drawPhone(J) {
+  ctx.save();
+  roundRect(J.handF[0] - 3, J.handF[1] - 9, 7, 11, 2);
+  ctx.fillStyle = '#fff';
+  ctx.fill();
+  ctx.lineWidth = 1.2;
+  ctx.strokeStyle = '#c4c4c4';
+  ctx.stroke();
+  ctx.restore();
+}
+
+function render() {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  ctx.setTransform(dpr * cam.s, 0, 0, dpr * cam.s, dpr * cam.x, dpr * (cam.y + shake));
+  const left = toWorld(0, 0)[0], right = toWorld(cw, 0)[0];
+  drawCar(left, right);
+  drawGround(left - 20, right + 20);
+  for (const s of sitters) {
+    if (s.x > left - 40 && s.x < right + 40) {
+      drawFigure(s, s.x, 8, Math.sin(clock * 2 + s.ph) * 0.8, { ink: '#cfcfcf', far: '#e4e4e4', goon: true, over: drawPhone });
+    }
+  }
+  for (const c of crowd) {
+    drawFigure(c, c.x, 8, Math.sin(clock * 2 + c.ph) * 0.8, { flip: c.flip, ink: '#b3b3b3', far: '#d4d4d4', goon: true });
+  }
+  if (R) {
+    const p = R.p;
+    for (const r of R.rs) {
+      contactShadow(r.x, 14, 0.08);
+      drawFigure(r, r.x, 8, 0, Object.assign({ flip: r.st !== 'seat' && r.dir < 0, ink: '#7f7f7f', far: '#b8b8b8', goon: true }, riderProps(r.type)));
+    }
+    contactShadow(p.x, 15, 0.1);
+    drawFigure(me, p.x, 8, mode === 'menu' ? Math.sin(clock * 2) * 1.2 : 0, { rot: p.rot, pivot: [8, -8] });
+  }
+  drawLamp(left, right);
+  drawBits();
+  drawPopups(left, right);
+}
+
+function shareCanvas(res) {
+  const SW = 1080, SH = 1350;
+  const c = document.createElement('canvas');
+  c.width = SW;
+  c.height = SH;
+  const prev = ctx;
+  ctx = c.getContext('2d');
+  const font = (s) => `400 ${s}px 'Balsamiq Sans', system-ui, sans-serif`;
+  ctx.fillStyle = COL.bg;
+  ctx.fillRect(0, 0, SW, SH);
+  ctx.fillStyle = COL.dot;
+  for (let y = 18; y < SH; y += 36) {
+    for (let xx = 18; xx < SW; xx += 36) {
+      ctx.beginPath();
+      ctx.arc(xx, y, 1.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  if (res.isBest) {
+    ctx.fillStyle = COL.accent;
+    ctx.font = font(30);
+    ctx.letterSpacing = '4px';
+    ctx.fillText('PERSONAL BEST', 82, 108);
+  }
+  ctx.fillStyle = COL.ink;
+  ctx.font = font(250);
+  ctx.letterSpacing = '-4px';
+  ctx.fillText(String(res.score), 70, 330);
+  ctx.letterSpacing = '4px';
+  ctx.fillStyle = COL.muted;
+  ctx.font = font(30);
+  ctx.fillText('SEATS', 82, 386);
+  ctx.fillStyle = COL.ink;
+  ctx.font = font(64);
+  ctx.letterSpacing = '0px';
+  ctx.fillText(res.stop, 82, 560);
+  ctx.fillStyle = COL.muted;
+  ctx.font = font(21);
+  ctx.letterSpacing = '3px';
+  ctx.fillText('MADE IT TO', 84, 600);
+  ctx.fillStyle = COL.ink;
+  ctx.font = font(64);
+  ctx.letterSpacing = '0px';
+  ctx.fillText(String(res.kind), 82, 740);
+  ctx.fillStyle = COL.muted;
+  ctx.font = font(21);
+  ctx.letterSpacing = '3px';
+  ctx.fillText('SEATS GIVEN UP', 84, 780);
+  ctx.fillStyle = COL.faint;
+  ctx.font = font(26);
+  ctx.fillText(GAME.toUpperCase(), 84, 1196);
+  ctx.letterSpacing = '0px';
+  ctx.save();
+  ctx.translate(760, 1250);
+  ctx.scale(2.6, 2.6);
+  roundRect(-90, BENCH - 5, 180, 10, 4);
+  inkShape('#fff', 2);
+  ctx.fillStyle = COL.butter;
+  roundRect(-22, BENCH - 4, 44, 8, 3);
+  ctx.fill();
+  line(-80, BENCH + 5, -80, 0);
+  line(80, BENCH + 5, 80, 0);
+  drawGround(-120, 120);
+  drawFigure({ pose: P.sit }, 0, 8, 0, { live: false });
+  ctx.restore();
+  ctx = prev;
+  return c;
+}
+
+let toastTimer = 0;
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('on'), 2400);
+}
+
+async function share(res) {
+  if (!res) {
+    return;
+  }
+  try {
+    await document.fonts.ready;
+    const blob = await new Promise((r) => shareCanvas(res).toBlob(r, 'image/png'));
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${SLUG}-${res.score}.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    toast('Image saved');
+  } catch (e) {
+    toast('Could not save the image');
+  }
+}
+
+$('startFoot').innerHTML = lifetimeLine();
+newRound();
+if (Q.has('autoplay') || BOT) {
+  startGame();
+}
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.max(0, Math.min(0.05, (now - last) / 1000));
+  last = now;
+  if (!window.__freeze && dt > 0) {
+    update(dt);
+  }
+  render();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
